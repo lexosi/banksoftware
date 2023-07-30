@@ -1,7 +1,9 @@
 package lex;
 
+import lex.module.mongo.MongoConnect;
+
 public class Bank {
     public static void main(String[] args) throws Exception {
-        System.out.println("Hello, World!");
+        MongoConnect.connect();
     }
 }
