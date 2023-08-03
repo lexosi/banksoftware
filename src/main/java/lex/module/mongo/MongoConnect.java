@@ -15,6 +15,7 @@ import org.bson.Document;
 
 public class MongoConnect {
     public static MongoDatabase database;
+    private static MongoClient client;
 
     public static void connect() {
 
@@ -39,9 +40,18 @@ public class MongoConnect {
             MongoDatabase database = mongoClient.getDatabase("bank");
             database.runCommand(new Document("ping", 1));
             System.out.println("Pinged your deployment. You successfully connected to MongoDB!");
+
             MongoConnect.database = database;
+            MongoConnect.client = mongoClient;
         } catch (MongoException e) {
             e.printStackTrace();
+        }
+
+    }
+
+    public static void disconnect() {
+        if (client != null) {
+            client.close();
         }
 
     }

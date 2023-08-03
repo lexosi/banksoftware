@@ -5,8 +5,11 @@ import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 
 import org.bson.Document;
+import org.bson.conversions.Bson;
 
 import com.mongodb.client.MongoCollection;
+import com.mongodb.client.model.Filters;
+import com.mongodb.client.model.ReplaceOptions;
 
 import lex.module.mongo.MongoConnect;
 import lex.utils.EUserPermision;
@@ -16,19 +19,23 @@ public class BankUser extends SerializableObject {
     private EUserPermision permision;
     private String identifier;
     private String name;
-    private byte[] pin;
+    private String pin;
 
-    public BankUser(String identifier, String name, byte[] pin) {
+    public BankUser(String identifier, String name, String pin) {
         this.permision = EUserPermision.NONE;
         this.identifier = identifier;
         this.name = name;
-        this.pin = pin;
+        try {
+            this.setPin(pin);
+        } catch (NoSuchAlgorithmException e) {
+            e.printStackTrace();
+        }
     }
 
     public boolean comparePin(String comparePin) {
         try {
             MessageDigest digest = MessageDigest.getInstance("SHA3-256");
-            return digest.digest(comparePin.getBytes(StandardCharsets.UTF_8)) == this.pin;
+            return new String(digest.digest(comparePin.getBytes(StandardCharsets.UTF_8))).equals(this.pin);
         } catch (Exception ignored) {
         }
         return false;
@@ -36,7 +43,7 @@ public class BankUser extends SerializableObject {
 
     public void setPin(String pin) throws NoSuchAlgorithmException {
         MessageDigest digest = MessageDigest.getInstance("SHA3-256");
-        this.pin = digest.digest(pin.getBytes(StandardCharsets.UTF_8));
+        this.pin = new String(digest.digest(pin.getBytes(StandardCharsets.UTF_8)));
     }
 
     public String getIdentifier() {
@@ -70,9 +77,10 @@ public class BankUser extends SerializableObject {
     public void saveMongo() {
         final MongoCollection<Document> COLLECTION = BankUser.getCollection();
         final Document DOCUMENT = this.toDocument();
-        final Document DOCUMENT_ID = this.toDocumentId();
         
-        COLLECTION.updateOne(DOCUMENT_ID, new Document("$set", DOCUMENT));
+        Bson filter = Filters.eq("_id", identifier);
+        ReplaceOptions options = new ReplaceOptions().upsert(true);
+        COLLECTION.replaceOne(filter, DOCUMENT, options);
     }
 
     public Document toDocument() {
@@ -84,10 +92,17 @@ public class BankUser extends SerializableObject {
         return DOCUMENT;
     }
 
-    public Document toDocumentId() {
-        final Document DOCUMENT = new Document();
-        DOCUMENT.append("_id", this.identifier);
-        return DOCUMENT;
+ 
+    public static BankUser getFromMongo(String identifier) {
+        final MongoCollection<Document> COLLECTION = BankUser.getCollection();
+        final Document DOCUMENT = COLLECTION.find(new Document("_id", identifier)).first();
+        if (DOCUMENT == null) {
+            return null;
+        }
+        String pin = DOCUMENT.getString("pin");
+        BankUser USER = new BankUser(DOCUMENT.getString("_id"), DOCUMENT.getString("name"), pin);
+        USER.pin = pin;
+        return USER;
     }
 
 }
