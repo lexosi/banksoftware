@@ -22,22 +22,27 @@ public class MongoConnect {
                 .version(ServerApiVersion.V1)
                 .build();
 
-        MongoClientSettings settings = MongoClientSettings.builder()
-                .applyConnectionString(new ConnectionString(Variable.CONNECTION_STRING))
+        final ConnectionString URI = new ConnectionString(Variable.CONNECTION_STRING);
+        final MongoClientSettings SETTINGS = MongoClientSettings.builder()
+                .applyConnectionString(URI)
                 .serverApi(serverApi)
+                .retryWrites(true)
+                .retryReads(true)
                 .build();
 
         // Create a new client and connect to the server
-        try (MongoClient mongoClient = MongoClients.create(settings)) {
-            try {
-                // Send a ping to confirm a successful connection
-                MongoDatabase database = mongoClient.getDatabase("bank");
-                database.runCommand(new Document("ping", 1));
-                System.out.println("Pinged your deployment. You successfully connected to MongoDB!");
-                MongoConnect.database = database;
-            } catch (MongoException e) {
-                e.printStackTrace();
-            }
+
+        try {
+            MongoClient mongoClient = MongoClients.create(SETTINGS);
+
+            // Send a ping to confirm a successful connection
+            MongoDatabase database = mongoClient.getDatabase("bank");
+            database.runCommand(new Document("ping", 1));
+            System.out.println("Pinged your deployment. You successfully connected to MongoDB!");
+            MongoConnect.database = database;
+        } catch (MongoException e) {
+            e.printStackTrace();
         }
+
     }
 }
